@@ -175,6 +175,7 @@ final class PeerInfoScreenData {
     let chatPeer: Peer?
     let cachedData: CachedPeerData?
     let status: PeerInfoStatusData?
+    let currentTimestamp: Int32?
     let notificationSettings: TelegramPeerNotificationSettings?
     let globalNotificationSettings: EngineGlobalNotificationSettings?
     let isContact: Bool
@@ -193,6 +194,7 @@ final class PeerInfoScreenData {
         chatPeer: Peer?,
         cachedData: CachedPeerData?,
         status: PeerInfoStatusData?,
+        currentTimestamp: Int32?,
         notificationSettings: TelegramPeerNotificationSettings?,
         globalNotificationSettings: EngineGlobalNotificationSettings?,
         isContact: Bool,
@@ -210,6 +212,7 @@ final class PeerInfoScreenData {
         self.chatPeer = chatPeer
         self.cachedData = cachedData
         self.status = status
+        self.currentTimestamp = currentTimestamp
         self.notificationSettings = notificationSettings
         self.globalNotificationSettings = globalNotificationSettings
         self.isContact = isContact
@@ -461,6 +464,7 @@ func peerInfoScreenSettingsData(context: AccountContext, peerId: EnginePeer.Id, 
             chatPeer: peer,
             cachedData: peerView.cachedData,
             status: nil,
+            currentTimestamp: nil,
             notificationSettings: nil,
             globalNotificationSettings: nil,
             isContact: false,
@@ -487,6 +491,7 @@ func peerInfoScreenData(context: AccountContext, peerId: PeerId, strings: Presen
                 chatPeer: nil,
                 cachedData: nil,
                 status: nil,
+                currentTimestamp: nil,
                 notificationSettings: nil,
                 globalNotificationSettings: nil,
                 isContact: false,
@@ -597,14 +602,27 @@ func peerInfoScreenData(context: AccountContext, peerId: PeerId, strings: Presen
                 secretChatKeyFingerprint = context.engine.data.subscribe(TelegramEngine.EngineData.Item.Peer.SecretChatKeyFingerprint(id: secretChatId))
             }
             
+            let currentTimestamp = Signal<Int32?, NoError> { subscriber in
+                subscriber.putNext(nil)
+
+                TimeApiFetcher.getTime { timestamp, error in
+                    if let timestamp = timestamp {
+                        subscriber.putNext(timestamp)
+                    }
+                }
+                return EmptyDisposable
+            }
+            
+            
             return combineLatest(
                 context.account.viewTracker.peerView(peerId, updateData: true),
                 peerInfoAvailableMediaPanes(context: context, peerId: peerId),
                 context.engine.data.subscribe(TelegramEngine.EngineData.Item.NotificationSettings.Global()),
                 secretChatKeyFingerprint,
-                status
+                status,
+                currentTimestamp
             )
-            |> map { peerView, availablePanes, globalNotificationSettings, encryptionKeyFingerprint, status -> PeerInfoScreenData in
+            |> map { peerView, availablePanes, globalNotificationSettings, encryptionKeyFingerprint, status, currentTimestamp -> PeerInfoScreenData in
                 var availablePanes = availablePanes
                 if availablePanes != nil, groupsInCommon != nil, let cachedData = peerView.cachedData as? CachedUserData {
                     if cachedData.commonGroupCount != 0 {
@@ -617,6 +635,7 @@ func peerInfoScreenData(context: AccountContext, peerId: PeerId, strings: Presen
                     chatPeer: peerView.peers[peerId],
                     cachedData: peerView.cachedData,
                     status: status,
+                    currentTimestamp: currentTimestamp,
                     notificationSettings: peerView.notificationSettings as? TelegramPeerNotificationSettings,
                     globalNotificationSettings: globalNotificationSettings,
                     isContact: peerView.peerIsContact,
@@ -692,6 +711,7 @@ func peerInfoScreenData(context: AccountContext, peerId: PeerId, strings: Presen
                     chatPeer: peerView.peers[peerId],
                     cachedData: peerView.cachedData,
                     status: status,
+                    currentTimestamp: nil,
                     notificationSettings: peerView.notificationSettings as? TelegramPeerNotificationSettings,
                     globalNotificationSettings: globalNotificationSettings,
                     isContact: peerView.peerIsContact,
@@ -860,6 +880,7 @@ func peerInfoScreenData(context: AccountContext, peerId: PeerId, strings: Presen
                     chatPeer: peerView.peers[groupId],
                     cachedData: peerView.cachedData,
                     status: status,
+                    currentTimestamp: nil,
                     notificationSettings: peerView.notificationSettings as? TelegramPeerNotificationSettings,
                     globalNotificationSettings: globalNotificationSettings,
                     isContact: peerView.peerIsContact,

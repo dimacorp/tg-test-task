@@ -899,7 +899,7 @@ private func infoItems(data: PeerInfoScreenData?, context: AccountContext, prese
     
     if let user = data.peer as? TelegramUser {
         if !callMessages.isEmpty {
-            items[.calls]!.append(PeerInfoScreenCallListItem(id: 20, messages: callMessages))
+            items[.calls]!.append(PeerInfoScreenCallListItem(id: 20, messages: callMessages, currentTimestamp: data.currentTimestamp))
         }
         
         if let phone = user.phone {
